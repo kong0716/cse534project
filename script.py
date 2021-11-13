@@ -11,7 +11,7 @@ from pprint import pprint
 from datetime import datetime
 
 
-def run_latency_and_jitter_and_packet_loss_tests(website: str, num_pings=10):
+def run_latency_and_jitter_and_packet_loss_tests(website: str, num_pings=10) -> tuple:
     """
     Given a website perform an evaluation on, run a latency, jitter, and 
     packet loss tests using the given website
@@ -63,35 +63,10 @@ def run_latency_and_jitter_and_packet_loss_tests(website: str, num_pings=10):
     }
     print(f"Packet Loss Test:")
     pprint(loss_dict)
+    return latency_dict, jitter_dict, loss_dict
 
 
-def read_data_from_cmd():
-    """
-    Pulled from here: https://github.com/s7jones/Wifi-Signal-Plotter/blob/master/WifiSignalPlotter.py
-    """
-    if platform.system() == 'Linux':
-	    p = subprocess.Popen("iwconfig", stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    elif platform.system() == 'Windows':
-	    p = subprocess.Popen("netsh wlan show interfaces", stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        #https://www.speedguide.net/faq/how-does-rssi-dbm-relate-to-signal-quality-percent-439
-        #https://www.thewindowsclub.com/signal-strength-wi-fi-connection-windows
-    else:
-	    raise Exception('reached else of if statement')
-    out = p.stdout.read().decode()
-
-    if platform.system() == 'Linux':
-        m = re.findall('(wlan[0-9]+).*?Signal level=(-[0-9]+) dBm', out, re.DOTALL)
-    elif platform.system() == 'Windows':
-        m = re.findall('Name.*?:.*?([A-z0-9 ]*).*?Signal.*?:.*?([0-9]*)%', out, re.DOTALL)
-    else:
-        raise Exception('reached else of if statement')
-
-    p.communicate()
-
-    return m
-
-
-def run_signal_strength_test(wifi_name: str):
+def run_signal_strength_test(wifi_name: str) -> dict:
     """
     Run a signal strength test on the given network and report the results
 
@@ -136,6 +111,7 @@ def run_signal_strength_test(wifi_name: str):
                     signal_strength_dict[key] = val
     
     pprint(signal_strength_dict)
+    return signal_strength_dict
 
 
 def map_key_and_val_from_results(key: str, val: str, wifi_name: str) -> tuple:
@@ -159,7 +135,7 @@ def map_key_and_val_from_results(key: str, val: str, wifi_name: str) -> tuple:
 
     return kv_map[key], val
 
-def run_network_bandwidth_test():
+def run_network_bandwidth_test() -> dict:
     """
     Run a bandwidth test on the given network and report the results in the form of download/upload metrics
     """
@@ -174,6 +150,7 @@ def run_network_bandwidth_test():
     }
     print(f"Bandwidth Test:")
     pprint(bandwidth_dict)
+    return bandwidth_dict
 
 
 def main(location: str, latitude: float, longitude: float, wifi_name: str) -> None:
@@ -224,17 +201,23 @@ def main(location: str, latitude: float, longitude: float, wifi_name: str) -> No
     ]
     WEBSITE_TO_TEST = "google.com"
 
-    print("-" * 60)
-    print(f"Running latency, jitter, and packet loss tests for {WEBSITE_TO_TEST}...")
-    run_latency_and_jitter_and_packet_loss_tests(website=WEBSITE_TO_TEST)
+    dir = f"./{location}/{str(latitude).replace('.', '_')}/{str(longitude).replace('.', '_')}/{wifi_name}"
+    filename = "{:%Y_%m_%d_%H_%M_%S}".format(start)
+    print(dir)
+    print(filename)
+    if not os.path.exists(dir):
+        os.makedirs(dir)
+
     print("-" * 60)
     print(f"Running signal strength test...")
-    run_signal_strength_test(wifi_name=wifi_name)
+    signal_strength_dict = run_signal_strength_test(wifi_name=wifi_name)
     print("-" * 60)
     print(f"Running network bandwidth test...")
-    run_network_bandwidth_test()
+    bandwidth_dict = run_network_bandwidth_test()
     print("-" * 60)
-    # print(read_data_from_cmd())
+    print(f"Running latency, jitter, and packet loss tests for {WEBSITE_TO_TEST}...")
+    latency_dict, jitter_dict, loss_dict = run_latency_and_jitter_and_packet_loss_tests(website=WEBSITE_TO_TEST)
+    print("-" * 60)
     end = datetime.now()
     print(f"Total time taken to perform network assessment: {end - start}")
 
