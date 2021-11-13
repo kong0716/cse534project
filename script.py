@@ -11,7 +11,7 @@ from pprint import pprint
 from datetime import datetime
 
 
-def run_latency_and_jitter_and_packet_loss_tests(website: str, num_pings=10) -> tuple:
+def run_latency_and_jitter_and_packet_loss_tests(website: str, num_pings=60) -> tuple:
     """
     Given a website perform an evaluation on, run a latency, jitter, and 
     packet loss tests using the given website
