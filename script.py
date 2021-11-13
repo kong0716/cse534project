@@ -11,7 +11,7 @@ from pprint import pprint
 from datetime import datetime
 
 
-def run_latency_and_jitter_and_packet_loss_tests(website: str, num_pings=60) -> tuple:
+def run_latency_and_jitter_and_packet_loss_tests(website: str, num_pings=10) -> tuple:
     """
     Given a website perform an evaluation on, run a latency, jitter, and 
     packet loss tests using the given website
@@ -245,12 +245,12 @@ def main(location: str, latitude: float, longitude: float, wifi_name: str) -> No
 
     ## Consolidate data
     print(f"Saving signal and bandwidth data to {dir + '/' + filename_network}...")
-    signal_strength_df = signal_strength_dict.update(bandwidth_dict)
-    signal_strength_df["location"] = location
-    signal_strength_df["latitude"] = latitude
-    signal_strength_df["longitude"] = longitude
-    signal_strength_df["wifi_name"] = wifi_name
-    pd.DataFrame.from_dict(signal_strength_df).to_csv(dir + '/' + filename_network, index=False)
+    signal_strength_dict.update(bandwidth_dict)
+    signal_strength_dict["location"] = location
+    signal_strength_dict["latitude"] = latitude
+    signal_strength_dict["longitude"] = longitude
+    signal_strength_dict["wifi_name"] = wifi_name
+    pd.DataFrame.from_dict(signal_strength_dict).to_csv(dir + '/' + filename_network, index=False)
 
     print(f"Saving latency, jitter, and packet loss data to {dir + '/' + filename_websites}...")
     pd.DataFrame(latency_jitter_loss_data).to_csv(dir + "/" + filename_websites, index=False)
