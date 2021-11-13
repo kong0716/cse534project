@@ -5,7 +5,6 @@ import json
 import numpy as np
 import speedtest
 import platform
-import re
 import os
 from pprint import pprint
 from datetime import datetime
@@ -202,7 +201,8 @@ def main(location: str, latitude: float, longitude: float, wifi_name: str) -> No
     WEBSITE_TO_TEST = "google.com"
 
     dir = f"./{location}/{str(latitude).replace('.', '_')}/{str(longitude).replace('.', '_')}/{wifi_name}"
-    filename = "{:%Y_%m_%d_%H_%M_%S}".format(start)
+    filename_websites = "{:%Y_%m_%d_%H_%M_%S}".format(start) + f"_{WEBSITE_TO_TEST}"
+    filename_network = "{:%Y_%m_%d_%H_%M_%S}".format(start) + f"_network"
     print(dir)
     print(filename)
     if not os.path.exists(dir):
