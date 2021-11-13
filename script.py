@@ -5,40 +5,69 @@ import json
 import rssi
 import numpy
 import psutil
+import speedtest
+import platform
+import re
+import os
 
-def run_latency_test(website, num_pings = 2):
-    ping_parser = pingparsing.PingParsing()
-    transmitter = pingparsing.PingTransmitter()
-    transmitter.destination = website
-    transmitter.count = num_pings
-    result = transmitter.ping()
-    result_dict = json.dumps(ping_parser.parse(result).as_dict(), indent=4)
+s = speedtest.Speedtest()
+
+
+def run_latency_and_jitter_test(website, num_pings = 10):
+    #ping_parser = pingparsing.PingParsing()
+    #transmitter = pingparsing.PingTransmitter()
+    #transmitter.destination = website
+    #transmitter.count = num_pings
+    #result = transmitter.ping()
+    #result_dict = json.dumps(ping_parser.parse(result).as_dict(), indent=4)
+
+    #https://stackoverflow.com/questions/1854/python-what-os-am-i-running-on
+    subprocessList = ["pingparsing", website]
+    subprocessList.extend(["-c", str(num_pings)])
+    result = (subprocess.check_output(subprocessList)).decode("utf-8").split("\n")
+    print(result)
+
     print(f"Latency Test:\n{result_dict}")
 
+#https://github.com/s7jones/Wifi-Signal-Plotter/blob/master/WifiSignalPlotter.py
+def read_data_from_cmd():
+	if platform.system() == 'Linux':
+		p = subprocess.Popen("iwconfig", stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+	elif platform.system() == 'Windows':
+		p = subprocess.Popen("netsh wlan show interfaces", stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+	else:
+		raise Exception('reached else of if statement')
+	out = p.stdout.read().decode()
+
+	if platform.system() == 'Linux':
+		m = re.findall('(wlan[0-9]+).*?Signal level=(-[0-9]+) dBm', out, re.DOTALL)
+	elif platform.system() == 'Windows':
+		m = re.findall('Name.*?:.*?([A-z0-9 ]*).*?Signal.*?:.*?([0-9]*)%', out, re.DOTALL)
+	else:
+		raise Exception('reached else of if statement')
+
+	p.communicate()
+
+	return m
+
 def get_signal_strength():
-    interface = 'wlp1s0'.encode('utf-8')
-    rssi_scanner = rssi.RSSI_Scan(interface)
-    ssids = ['dd-wrt','linksys']
-
-    # sudo argument automatixally gets set for 'false', if the 'true' is not set manually.
-    # python file will have to be run with sudo privileges.
-    ap_info = rssi_scanner.getAPinfo(networks=ssids, sudo=True)
-
-    print(f"Signal Strength Test:\n{ap_info}")
+    # macos command
+    # /System/Library/PrivateFrameworks/Apple80211.framework/Versions/Current/Resources/airport -I | grep 'agrCtlRSSI\|agrCtlNoise\|SSID'
+    # Extract agrCtlRSSI and agrCtlNoise, can also SSID (wifi network)
+    return
 
 def get_network_bandwidth():
-    # From here: https://stackoverflow.com/questions/8958614/measure-network-data-with-python
-    bandwidth_result = psutil.net_io_counters(pernic=True)
-    print(f"Network Bandwidth Test:\n{bandwidth_result}")
+    print('My download speed is:', s.download())
+    print('My upload speed is:', s.upload())
 
 def main():
-    print("Hello World!")
-    #run_latency_test("google.com")
+    run_latency_and_jitter_test("google.com")
     # print("-" * 60)
-    get_signal_strength()
-    print("-" * 60)
-    get_network_bandwidth()
-    print("-" * 60)
+    #get_signal_strength()
+    # print("-" * 60)
+    #get_network_bandwidth()
+    # print("-" * 60)
+    # print(read_data_from_cmd())
 
 if __name__ == "__main__":
     main()
