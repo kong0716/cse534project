@@ -35,6 +35,8 @@ def read_data_from_cmd():
 		p = subprocess.Popen("iwconfig", stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 	elif platform.system() == 'Windows':
 		p = subprocess.Popen("netsh wlan show interfaces", stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        #https://www.speedguide.net/faq/how-does-rssi-dbm-relate-to-signal-quality-percent-439
+        #https://www.thewindowsclub.com/signal-strength-wi-fi-connection-windows
 	else:
 		raise Exception('reached else of if statement')
 	out = p.stdout.read().decode()
