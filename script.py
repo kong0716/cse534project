@@ -2,7 +2,6 @@ import subprocess
 import sys
 import pingparsing
 import json
-import rssi
 import numpy as np
 import psutil
 import speedtest
@@ -30,7 +29,10 @@ def run_latency_and_jitter_and_packet_loss_tests(website: str, num_pings=10):
 
     #https://stackoverflow.com/questions/1854/python-what-os-am-i-running-on
     # Latency test
-    subprocess_list = ["pingparsing", website, "--icmp-reply"]
+    subprocess_list = []
+    if platform.system() == "Linux":
+        subprocess_list = ["python3", "-m"]
+    subprocess_list.extend(["pingparsing", website, "--icmp-reply"])
     subprocess_list.extend(["-c", str(num_pings)])
     latency_dict = json.loads((subprocess.check_output(subprocess_list)).decode("utf-8"))
     print(f"Latency Test:")
@@ -98,25 +100,58 @@ def run_signal_strength_test():
     # /System/Library/PrivateFrameworks/Apple80211.framework/Versions/Current/Resources/airport -I | grep 'agrCtlRSSI\|agrCtlNoise\|SSID'
     # Extract agrCtlRSSI and agrCtlNoise, can also SSID (wifi network)
     signal_strength_dict = {}
+    command_to_run = None
     if platform.system() == "Windows":
         # Do Windows stuff here
         pass
+    #https://superuser.com/questions/442307/iwconfig-does-not-show-noise-level-for-wireless
+    elif platform.system() == "Linux":
+        command_to_run = "iwconfig | grep 'Signal level\|Link Quality\|SSID'"
     else:
         command_to_run = "/System/Library/PrivateFrameworks/Apple80211.framework/Versions/Current/Resources/airport -I | grep 'agrCtlRSSI\|agrCtlNoise\|SSID'"
-        popen_cmd = subprocess.Popen(command_to_run, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-        signal_strength_result = [s.strip() for s in (popen_cmd.communicate()[0]).decode("utf-8").split("\n")]
-        
-        
+    
+    popen_cmd = subprocess.Popen(command_to_run, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    signal_strength_result = [s.strip() for s in (popen_cmd.communicate()[0]).decode("utf-8").split("\n")]
+    if platform.system() == "Linux":
+        signal_strength_result = signal_strength_result[-3:-1]
+        for attr in signal_strength_result:
+            if attr and "ESSID:" in attr:
+                data = attr.split(" ")[-1]
+                key, val = data.split(":")
+                key, val = map_key_and_val_from_results(key, val)
+                signal_strength_dict[key] = val
+            elif attr and "Signal level=" in attr:
+                data = attr.split(" ")[-2]
+                key, val = data.split("=")
+                key, val = map_key_and_val_from_results(key, val)
+                signal_strength_dict[key] = val
+    else:
         for attr in signal_strength_result:
             if attr:
                 key, val = attr.split(": ")
-                if isinstance(val, int):
-                    signal_strength_dict[key] = int(val)
-                else:
-                    signal_strength_dict[key] = val
-        
+                key, val = map_key_and_val_from_results(key, val)
+                signal_strength_dict[key] = val
+    
     pprint(signal_strength_dict)
 
+
+def map_key_and_val_from_results(key: str, val: str) -> tuple:
+    kv_map = {
+        "agrCtlRSSI": "signal_strength",
+        "SSID": "ssid",
+        "level": "signal_strength",
+        "ESSID": "ssid"
+    }
+
+    if key == "agrCtlRSSI":
+        val = int(val)
+    if key == "level":
+        # values in dbm
+        val = int(val)
+    if key == "ESSID":
+        val = val.replace("\"", "")
+
+    return kv_map[key], val
 
 def run_network_bandwidth_test():
     """
@@ -135,7 +170,7 @@ def run_network_bandwidth_test():
     pprint(bandwidth_dict)
 
 
-def main():
+def main(location: str, latitude: float, longitude: float, wifi_name: str) -> None:
     """
     Main method for script execution
     """
@@ -179,6 +214,7 @@ def main():
         "groupme.com",
         "quizlet.com",
         "github.com"
+        "https://psns.cc.stonybrook.edu/psp/csprods/EMPLOYEE/CAMP/?cmd=login&languageCd=ENG&"
     ]
     WEBSITE_TO_TEST = "google.com"
 
@@ -198,4 +234,17 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    # Program args:
+    # - name of location
+    # - latitude
+    # - longitude
+    # - wifi network name
+    arg_list = sys.argv
+    if len(arg_list) != 5:
+        print("Missing some arguments")
+        print("Example: 'script.py Schomburg-A 40.91339 -73.13221 WolfieNet-Secure'")
+    location = arg_list[1]
+    latitude = float(arg_list[2])
+    longitude = float(arg_list[3])
+    wifi_name = arg_list[4]
+    main(location=location, latitude=latitude, longitude=longitude, wifi_name=wifi_name)
