@@ -3,7 +3,6 @@ import sys
 import pingparsing
 import json
 import numpy as np
-import psutil
 import speedtest
 import platform
 import re
@@ -92,9 +91,11 @@ def read_data_from_cmd():
     return m
 
 
-def run_signal_strength_test():
+def run_signal_strength_test(wifi_name: str):
     """
     Run a signal strength test on the given network and report the results
+
+    :param str wifi_name: the name of the wifi network to check when the test is run
     """
     # macos command
     # /System/Library/PrivateFrameworks/Apple80211.framework/Versions/Current/Resources/airport -I | grep 'agrCtlRSSI\|agrCtlNoise\|SSID'
@@ -108,7 +109,7 @@ def run_signal_strength_test():
     elif platform.system() == "Linux":
         command_to_run = "iwconfig | grep 'Signal level\|Link Quality\|SSID'"
     else:
-        command_to_run = "/System/Library/PrivateFrameworks/Apple80211.framework/Versions/Current/Resources/airport -I | grep 'agrCtlRSSI\|agrCtlNoise\|SSID'"
+        command_to_run = "/System/Library/PrivateFrameworks/Apple80211.framework/Versions/Current/Resources/airport -I | grep 'agrCtlRSSI\|SSID'"
     
     popen_cmd = subprocess.Popen(command_to_run, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     signal_strength_result = [s.strip() for s in (popen_cmd.communicate()[0]).decode("utf-8").split("\n")]
@@ -118,24 +119,26 @@ def run_signal_strength_test():
             if attr and "ESSID:" in attr:
                 data = attr.split(" ")[-1]
                 key, val = data.split(":")
-                key, val = map_key_and_val_from_results(key, val)
+                key, val = map_key_and_val_from_results(key, val, wifi_name)
                 signal_strength_dict[key] = val
             elif attr and "Signal level=" in attr:
                 data = attr.split(" ")[-2]
                 key, val = data.split("=")
-                key, val = map_key_and_val_from_results(key, val)
+                print(key, val)
+                key, val = map_key_and_val_from_results(key, val, wifi_name)
                 signal_strength_dict[key] = val
     else:
         for attr in signal_strength_result:
             if attr:
                 key, val = attr.split(": ")
-                key, val = map_key_and_val_from_results(key, val)
-                signal_strength_dict[key] = val
+                if key != "BSSID":
+                    key, val = map_key_and_val_from_results(key, val, wifi_name)
+                    signal_strength_dict[key] = val
     
     pprint(signal_strength_dict)
 
 
-def map_key_and_val_from_results(key: str, val: str) -> tuple:
+def map_key_and_val_from_results(key: str, val: str, wifi_name: str) -> tuple:
     kv_map = {
         "agrCtlRSSI": "signal_strength",
         "SSID": "ssid",
@@ -150,6 +153,9 @@ def map_key_and_val_from_results(key: str, val: str) -> tuple:
         val = int(val)
     if key == "ESSID":
         val = val.replace("\"", "")
+
+    if kv_map[key] == "ssid" and wifi_name != val:
+        raise Exception(f"Wi-Fi network {val} does not match CLI arg {wifi_name}")
 
     return kv_map[key], val
 
@@ -175,7 +181,7 @@ def main(location: str, latitude: float, longitude: float, wifi_name: str) -> No
     Main method for script execution
     """
     start = datetime.now()
-
+    print(f"Program Args Loaded:\n\tLocation: {location}\n\tLatitude, Longitude: ({latitude},{longitude})\n\tWi-Fi Name to Test: {wifi_name}")
     # Borrowed from alexa.com
     websites_to_test = [
         # Top 25 listed on alexa.com/topsites
@@ -223,7 +229,7 @@ def main(location: str, latitude: float, longitude: float, wifi_name: str) -> No
     run_latency_and_jitter_and_packet_loss_tests(website=WEBSITE_TO_TEST)
     print("-" * 60)
     print(f"Running signal strength test...")
-    run_signal_strength_test()
+    run_signal_strength_test(wifi_name=wifi_name)
     print("-" * 60)
     print(f"Running network bandwidth test...")
     run_network_bandwidth_test()
