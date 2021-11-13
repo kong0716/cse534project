@@ -6,6 +6,7 @@ import numpy as np
 import speedtest
 import platform
 import os
+import pandas as pd
 from pprint import pprint
 from datetime import datetime
 
@@ -46,7 +47,9 @@ def run_latency_and_jitter_and_packet_loss_tests(website: str, num_pings=10) -> 
     abs_diffs = [abs(j-i) for i,j in zip(timestamps, timestamps[1:])]
 
     # Perform the mean of the absolute differences and report as jitter
-    jitter = np.mean(abs_diffs)
+    jitter = -1
+    if abs_diffs:
+        jitter = np.mean(abs_diffs)
     jitter_dict = {
         "jitter": jitter
     }
@@ -151,6 +154,9 @@ def run_network_bandwidth_test() -> dict:
     pprint(bandwidth_dict)
     return bandwidth_dict
 
+def combine_signal_and_bandwith(signal_strength_dict: dict, bandwidth_dict: dict):
+    merged_dict = signal_strength_dict.update(bandwidth_dict)
+    return merged_dict
 
 def main(location: str, latitude: float, longitude: float, wifi_name: str) -> None:
     """
@@ -160,7 +166,7 @@ def main(location: str, latitude: float, longitude: float, wifi_name: str) -> No
     print(f"Program Args Loaded:\n\tLocation: {location}\n\tLatitude, Longitude: ({latitude},{longitude})\n\tWi-Fi Name to Test: {wifi_name}")
     # Borrowed from alexa.com
     websites_to_test = [
-        # Top 25 listed on alexa.com/topsites
+        # 25 websites from top 50 listed on alexa.com/topsites
         "google.com",
         "youtube.com",
         "tmall.com",
@@ -176,11 +182,11 @@ def main(location: str, latitude: float, longitude: float, wifi_name: str) -> No
         "wikipedia.org",
         "weibo.com",
         "sina.com.cn",
-        "xinhuanet.com",
-        "zoom.us",
+        "alipay.com",
+        "bing.com", 
         "live.com",
-        "netflix.com",
-        "microsoft.com",
+        "twitter.com",
+        "twitch.tv",
         "reddit.com",
         "office.com",
         "instagram.com",
@@ -189,23 +195,21 @@ def main(location: str, latitude: float, longitude: float, wifi_name: str) -> No
 
         # SBU-specific (possible) [7 total]
         "blackboard.stonybrook.edu",
-        "piazza.com",
+        "messenger.com",
         "classroom.google.com",
         "chegg.com",
         "coursehero.com",
-        "groupme.com",
+        "discord.com",
         "quizlet.com",
         "github.com"
-        "https://psns.cc.stonybrook.edu/psp/csprods/EMPLOYEE/CAMP/?cmd=login&languageCd=ENG&"
+        "psns.cc.stonybrook.edu"
+        "stackoverflow.com"
     ]
-    WEBSITE_TO_TEST = "google.com"
 
-    dir = f"./{location}/{str(latitude).replace('.', '_')}/{str(longitude).replace('.', '_')}/{wifi_name}"
-    filename_websites = "{:%Y_%m_%d_%H_%M_%S}".format(start) + f"_{WEBSITE_TO_TEST}"
-    filename_network = "{:%Y_%m_%d_%H_%M_%S}".format(start) + f"_network"
-    print(dir)
-    print(filename_websites)
-    print(filename_network)
+    dir = f"./results/{location}/{str(latitude).replace('.', '_')}/{str(longitude).replace('.', '_')}/{wifi_name}"
+    filename_websites = "{:%Y_%m_%d_%H_%M_%S}".format(start) + f"_websites.csv"
+    filename_network = "{:%Y_%m_%d_%H_%M_%S}".format(start) + f"_network.csv"
+
     if not os.path.exists(dir):
         os.makedirs(dir)
 
@@ -216,12 +220,40 @@ def main(location: str, latitude: float, longitude: float, wifi_name: str) -> No
     print(f"Running network bandwidth test...")
     bandwidth_dict = run_network_bandwidth_test()
     print("-" * 60)
-    print(f"Running latency, jitter, and packet loss tests for {WEBSITE_TO_TEST}...")
-    latency_dict, jitter_dict, loss_dict = run_latency_and_jitter_and_packet_loss_tests(website=WEBSITE_TO_TEST)
+    print(f"Running latency, jitter, and packet loss tests...")
+    latency_jitter_loss_data = []
+    for website in websites_to_test:
+        print(f"Testing {website}...")
+        latency_dict, jitter_dict, loss_dict = run_latency_and_jitter_and_packet_loss_tests(website=website)
+        data_to_append = {
+            **latency_dict[website],
+            **jitter_dict,
+            **loss_dict
+        }
+        data_to_append["location"] = location
+        data_to_append["latitude"] = latitude
+        data_to_append["longitude"] = longitude
+        data_to_append["wifi_name"] = wifi_name
+        del data_to_append["icmp_replies"]
+        latency_jitter_loss_data.append(
+            data_to_append
+        )
+        print("-" * 60)
     print("-" * 60)
     end = datetime.now()
     print(f"Total time taken to perform network assessment: {end - start}")
 
+    ## Consolidate data
+    print(f"Saving signal and bandwidth data to {dir + '/' + filename_network}...")
+    signal_strength_df = signal_strength_dict.update(bandwidth_dict)
+    signal_strength_df["location"] = location
+    signal_strength_df["latitude"] = latitude
+    signal_strength_df["longitude"] = longitude
+    signal_strength_df["wifi_name"] = wifi_name
+    pd.DataFrame.from_dict(signal_strength_df).to_csv(dir + '/' + filename_network, index=False)
+
+    print(f"Saving latency, jitter, and packet loss data to {dir + '/' + filename_websites}...")
+    pd.DataFrame(latency_jitter_loss_data).to_csv(dir + "/" + filename_websites, index=False)
 
 if __name__ == "__main__":
     # Program args:
