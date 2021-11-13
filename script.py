@@ -204,7 +204,8 @@ def main(location: str, latitude: float, longitude: float, wifi_name: str) -> No
     filename_websites = "{:%Y_%m_%d_%H_%M_%S}".format(start) + f"_{WEBSITE_TO_TEST}"
     filename_network = "{:%Y_%m_%d_%H_%M_%S}".format(start) + f"_network"
     print(dir)
-    print(filename)
+    print(filename_websites)
+    print(filename_network)
     if not os.path.exists(dir):
         os.makedirs(dir)
 
