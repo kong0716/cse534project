@@ -107,10 +107,15 @@ def run_signal_strength_test(wifi_name: str) -> dict:
     else:
         for attr in signal_strength_result:
             if attr:
-                key, val = attr.split(": ")
-                if key != "BSSID":
-                    key, val = map_key_and_val_from_results(key, val, wifi_name)
-                    signal_strength_dict[key] = val
+                key, val = None, None
+                try:
+                    key, val = attr.split(": ")
+                    if key and key != "BSSID":
+                        key, val = map_key_and_val_from_results(key, val, wifi_name)
+                        signal_strength_dict[key] = val
+                except:
+                    if "BSSID" in attr:
+                        signal_strength_dict["ssid"] = wifi_name
     
     pprint(signal_strength_dict)
     return signal_strength_dict
