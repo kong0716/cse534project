@@ -248,7 +248,7 @@ def main(location: str, latitude: float, longitude: float, wifi_name: str) -> No
     end = datetime.now()
     print(f"Total time taken to perform network assessment: {end - start}")
 
-    ## Consolidate data
+    # Consolidate data
     print(f"Saving signal and bandwidth data to {dir + '/' + filename_network}...")
     signal_strength_dict.update(bandwidth_dict)
     signal_strength_dict["location"] = location
